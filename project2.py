@@ -3,6 +3,7 @@ import cv2
 import glob
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import time
 # %matplotlib qt
 
 # Module Camera calibration: Needs to be done once
@@ -334,7 +335,9 @@ def measure_curvature_rad(left_fit, right_fit):
     left_curverad = ((1 + (2*left_fit[0]*y_eval*ym_per_pix + left_fit[1])**2)**1.5) / np.absolute(2*left_fit[0])
     right_curverad = ((1 + (2*right_fit[0]*y_eval*ym_per_pix + right_fit[1])**2)**1.5) / np.absolute(2*right_fit[0])
     
-    return left_curverad, right_curverad
+    radius_average = round(( (left_curverad + right_curverad) / 2000 ) , 4) 
+
+    return radius_average
 
 
 def addText(image, org, text):
@@ -357,11 +360,12 @@ def laneOffset():
 
     lane_center = left_linex + ( (right_linex - left_linex) /  2 )
     l_offset = (xm_per_pix * abs(x_center - lane_center) )
-
+    l_offset = round( l_offset, 4)
     return l_offset
 
-
 # Main code
+
+start_time = time.time()
 
 #global variables to store array coeffecient
 # These coeffecient will be filled from np.polyfit and 1st sliding window
@@ -442,15 +446,16 @@ while(cap.isOpened()):
         # May look redundant, but this function has global variable updates in it. so keep it
         # Try returning only the left/right fit and check it with searchpoly()
         # Note: HAVE TO CALL fit_polynomial_rect(warped) at least once as it updates global variable for search_around_poly
-        out_img = fit_polynomial_rect(warped) #updates the global variables left_fit/right_fit
-        
-        result = search_around_poly(warped)
 
-        radius_left, radius_right = measure_curvature_rad(left_fit, right_fit)
-        radius_average = round(( (radius_left+radius_right) / 2000 ) , 4)
-        l_Offset = round( laneOffset(), 4) #This fn takes global variable
+        if count == 1:
+            out_img = fit_polynomial_rect(warped) #updates the global variables left_fit/right_fit
+        else:
+            result = search_around_poly(warped)
 
-        #draw rectangle and lines
+        radius_average = measure_curvature_rad(left_fit, right_fit)
+        l_Offset = laneOffset() #This fn takes global variable
+
+        #draw rectangle, lines, and text
         result = draw_lines(warped)
         result = addText(result, (50,50) , "Radius of curvature: " + str(radius_average) +"Km")
         result = addText(result, (50, 100), "Lane offset: " + str(l_Offset)+"m")
@@ -470,3 +475,4 @@ out.release()
 # Closes all the frames 
 cv2.destroyAllWindows() 
 
+print("Time taken: %s s" % (time.time() - start_time))
